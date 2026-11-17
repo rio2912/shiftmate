@@ -1,54 +1,94 @@
-# ShiftMate (React + Vite + Electron)
+# ShiftMate
 
-Shows when your work day ends, with a live countdown, a reminder before the end time,
-and a desktop notification, chime and pop-up when time is up.
+A Windows desktop app that tells you when your work day ends. Pick your start time and break, and ShiftMate shows a live countdown and a floating always-on-top timer, and reminds you before it's time to leave.
+
+Built with React, Vite and Electron.
 
 ## Features
-- **Start** button (top bar): one click starts tracking from the current time
-- **Pop out** button: opens a small always-on-top window with the countdown that stays above every other app (Chrome / Edge)
-- **Reminders**: tea break 11:00 AM, lunch 1:00 PM and tea break 4:00 PM are set by default. Add, turn off or delete any reminder, with any time and message. They repeat every working day while the app is open.
-- Reminder before leaving, desktop notifications, chime, dark/light mode
 
-## Rules
-- Monday–Friday: 8 hours · Saturday: 6 hours 30 minutes · Sunday: off
-- Earliest start: 9:00 AM
-- End time = start time + work hours + break
+- **Leave time and live countdown**: start time + the day's work hours + break, with a progress ring and a Start → Break → Leave timeline.
+- **One-click Start**: starts today from the current time, from the top bar or from the floating timer.
+- **Floating timer**: a small always-on-top timer you can drag anywhere. Choose a **circle**, **rounded square** or **pill** shape and a size from 110 to 220px. Double-click it to open the main window.
+- **Reminders**: daily reminders (tea, lunch, meetings, water or anything custom) that go off on working days. Add, edit, turn off or delete them.
+- **Alerts**: a Windows notification, an on-screen pop-up and a chime before and when your day ends.
+- **Settings (company policy)**: your name and company, work hours for each weekday (any day can be a day off), earliest start time, default and maximum break, and the default "remind me before leaving".
+- **Runs in the tray**: closing the window keeps ShiftMate running. It can start with Windows.
+- **Light and dark mode.**
 
-## Run it
+### Default work policy
+
+These are only defaults. Change them under **⚙ Settings**.
+
+| | |
+|---|---|
+| Monday – Friday | 8 hours |
+| Saturday | 6 hours 30 minutes |
+| Sunday | Off |
+| Earliest start | 9:30 AM |
+| Break | 30 minutes (maximum 240) |
+| Reminder before leaving | 15 minutes |
+
+## Getting started
+
+Requires [Node.js](https://nodejs.org/) 18 or newer.
+
 ```bash
-cd C:\xampp\htdocs\work-time-calculator
 npm install
-npm run dev
+npm run app     # build and open the desktop app
 ```
-It opens at http://localhost:5174. Desktop notifications work there because `localhost` counts as a secure origin.
 
-## Build for XAMPP
+### Build the Windows installer
+
 ```bash
-npm run build
+npm run dist
 ```
-Then open http://localhost/work-time-calculator/dist/ while Apache is running.
+
+This creates `release/ShiftMate Setup <version>.exe`. The installer lets you choose the install folder and adds desktop and Start menu shortcuts. It isn't code-signed, so Windows SmartScreen may show "Windows protected your PC". Click **More info → Run anyway**.
+
+### Run in the browser
+
+```bash
+npm run dev     # http://localhost:5174
+```
+
+The browser version has everything except the desktop floating timer. In Chrome or Edge it uses a picture-in-picture pop-out window instead.
+
+## Troubleshooting
+
+- **"Electron failed to install correctly"**: delete `node_modules/electron` and run `npm install` again. If `node_modules/electron/dist/electron.exe` is still missing, check that your antivirus didn't remove it.
+- **App crashes with `ipcMain` undefined**: the `ELECTRON_RUN_AS_NODE` environment variable is set (VS Code terminals set it). `npm run app` clears it for you through `electron/start.cjs`. Avoid running `electron .` directly.
+- **`npm run dist` fails with "Cannot create symbolic link"**: electron-builder's signing tools contain macOS links that need admin rights or Windows Developer Mode. Turn on Developer Mode, or run the terminal as administrator once.
+- **The window doesn't open**: only one copy of ShiftMate can run at a time. Look for it in the system tray, or end `electron.exe` / `ShiftMate.exe` in Task Manager.
 
 ## Project structure
+
 ```
+electron/
+  main.cjs              main process: windows, tray, floating timer, IPC
+  preload.cjs           safe bridge between the app and Electron (window.workTime)
+  start.cjs             starts Electron with ELECTRON_RUN_AS_NODE removed
 src/
-  App.jsx                    page layout, session state, reminders
-  App.css                    styles
-  main.jsx                   React entry point
+  App.jsx               main window: session, layout, settings view
+  WidgetApp.jsx         the floating timer window (index.html#widget)
+  App.css               all styles and the light/dark theme tokens
   components/
-    TimeForm.jsx             date / start / break / reminder inputs
-    ResultPanel.jsx          end time, countdown, progress, details
-    Toasts.jsx               small pop-up messages
-    TimeUpModal.jsx          full-screen "Time's up!" alert
-    RemindersCard.jsx        add / toggle / delete reminders
-    MiniWidget.jsx           countdown shown in the pop-out window
-    Icons.jsx                inline SVG icons
+    TimeForm.jsx        "Plan your day" form and rules strip
+    ResultPanel.jsx     leave time, countdown ring, timeline, stats
+    SettingsPage.jsx    settings: profile, schedule, reminders, floating timer, rules
+    RemindersCard.jsx   add / edit / toggle / delete reminders
+    Pickers.jsx         custom date and time pickers
+    WelcomeModal.jsx    first-run "what's your name?" pop-up
+    TimeUpModal.jsx     "Time's up!" pop-up
+    MiniWidget.jsx      countdown for the browser pop-out window
+    Toasts.jsx, Icons.jsx
   hooks/
-    useNow.js                ticking clock (every second)
-    useNotifications.js      desktop notifications + chime
-    useReminders.js          daily reminders (tea, lunch, custom)
-    usePip.js                always-on-top mini window
+    useSettings.js      settings state, saved and synced between windows
+    useReminders.js     daily reminders
+    useNotifications.js desktop notifications and chime
+    useNow.js, usePip.js
   utils/
-    time.js                  work rules, validation and time formatting
+    settings.js         default policy, validation, floating timer sizes
+    time.js             leave-time calculation and time formatting
 ```
 
-Change the work rules in `src/utils/time.js` (`EARLIEST_START`, `WORK_MINUTES`, `MAX_BREAK`).
+Settings, reminders and the current day are saved in the app's local storage, so they survive restarts.
